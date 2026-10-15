@@ -9,13 +9,13 @@ const OWNER_STORAGE_KEY = 'cjr-jupyter-owner';
 const MAX_NOTEBOOK_BYTES = 10 * 1024 * 1024;
 const DOWNLOAD_CONCURRENCY = 4;
 
-interface LabInitPayload {
+interface ILabInitPayload {
   apiBaseUrl: string;
   authToken: string;
   initialProjectId?: string;
 }
 
-interface NotebookRow {
+interface INotebookRow {
   jn_id: string;
   jn_path: string;
   jn_title: string;
@@ -36,16 +36,23 @@ const fnv1a = (text: string): string => {
 };
 
 const isNotebookPath = (path: string) => /\.ipynb$/i.test(path);
-const isViewPath = (path: string) => path === VIEW_PREFIX || path.startsWith(`${VIEW_PREFIX}/`);
-const isUnder = (path: string, dir: string) => path === dir || path.startsWith(`${dir}/`);
-const titleFromPath = (path: string) => (path.split('/').pop() || path).replace(/\.ipynb$/i, '') || 'Untitled';
+const isViewPath = (path: string) =>
+  path === VIEW_PREFIX || path.startsWith(`${VIEW_PREFIX}/`);
+const isUnder = (path: string, dir: string) =>
+  path === dir || path.startsWith(`${dir}/`);
+const titleFromPath = (path: string) =>
+  (path.split('/').pop() || path).replace(/\.ipynb$/i, '') || 'Untitled';
 
 const parentOrigins = (): string[] => {
   const raw = PageConfig.getOption('cjrParentOrigins');
-  if (!raw) return [];
+  if (!raw) {
+    return [];
+  }
   try {
     const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((o): o is string => typeof o === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((o): o is string => typeof o === 'string')
+      : [];
   } catch {
     return raw
       .split(',')
@@ -57,7 +64,9 @@ const parentOrigins = (): string[] => {
 const userIdFromToken = (token: string): string | null => {
   try {
     const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    const claims = JSON.parse(atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), '=')));
+    const claims = JSON.parse(
+      atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), '=')),
+    );
     return claims.user_id !== undefined ? String(claims.user_id) : null;
   } catch {
     return null;
@@ -84,30 +93,53 @@ const storage = {
 class NotebookApi {
   constructor(
     private baseUrl: string,
-    private token: string
+    private token: string,
   ) {}
 
-  private async request<T>(method: string, query: Record<string, string> | null, body?: unknown): Promise<T> {
+  private async request<T>(
+    method: string,
+    query: Record<string, string> | null,
+    body?: unknown,
+  ): Promise<T> {
     const url = new URL(`${this.baseUrl.replace(/\/$/, '')}/jupyter/notebook`);
     Object.entries(query ?? {}).forEach(([k, v]) => url.searchParams.set(k, v));
     const res = await fetch(url.toString(), {
       method,
-      headers: { Authorization: `Bearer ${this.token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
     const text = await res.text();
     const data = text ? JSON.parse(text) : {};
-    if (!res.ok) throw new Error(data?.message || `Request failed (${res.status})`);
+    if (!res.ok) {
+      throw new Error(data?.message || `Request failed (${res.status})`);
+    }
     return data as T;
   }
 
-  list = async () => (await this.request<{ data: NotebookRow[] }>('GET', null)).data ?? [];
-  get = async (id: string) => (await this.request<{ data: NotebookRow[] }>('GET', { jn_id: id })).data?.[0] ?? null;
-  create = async (path: string) => (await this.request<{ data: NotebookRow }>('POST', null, { jn_path: path, jn_title: titleFromPath(path) })).data;
-  move = (row: NotebookRow, path: string) => this.request('PATCH', null, { jn_id: row.jn_id, jn_path: path, jn_title: titleFromPath(path) });
-  remove = (row: NotebookRow) => this.request('DELETE', { jn_id: row.jn_id });
+  list = async () =>
+    (await this.request<{ data: INotebookRow[] }>('GET', null)).data ?? [];
+  get = async (id: string) =>
+    (await this.request<{ data: INotebookRow[] }>('GET', { jn_id: id })).data?.[0] ??
+    null;
+  create = async (path: string) =>
+    (
+      await this.request<{ data: INotebookRow }>('POST', null, {
+        jn_path: path,
+        jn_title: titleFromPath(path),
+      })
+    ).data;
+  move = (row: INotebookRow, path: string) =>
+    this.request('PATCH', null, {
+      jn_id: row.jn_id,
+      jn_path: path,
+      jn_title: titleFromPath(path),
+    });
+  remove = (row: INotebookRow) => this.request('DELETE', { jn_id: row.jn_id });
 
-  async upload(row: NotebookRow, json: string, hash: string) {
+  async upload(row: INotebookRow, json: string, hash: string) {
     const res = await this.request<{ upload_url?: string }>('PATCH', null, {
       jn_id: row.jn_id,
       jn_path: row.jn_path,
@@ -115,33 +147,52 @@ class NotebookApi {
       jn_content_hash: hash,
       jn_data_key: row.jn_data_key || 'notebook',
     });
-    if (!res.upload_url) throw new Error('The server did not return an upload URL.');
-    const put = await fetch(res.upload_url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: json });
-    if (!put.ok) throw new Error(`Upload failed (${put.status})`);
+    if (!res.upload_url) {
+      throw new Error('The server did not return an upload URL.');
+    }
+    const put = await fetch(res.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: json,
+    });
+    if (!put.ok) {
+      throw new Error(`Upload failed (${put.status})`);
+    }
   }
 
-  async download(row: NotebookRow): Promise<unknown | null> {
-    if (!row.download_url) return null;
+  async download(row: INotebookRow): Promise<unknown | null> {
+    if (!row.download_url) {
+      return null;
+    }
     const res = await fetch(row.download_url, { cache: 'no-store' });
-    if (res.status === 403 || res.status === 404) return null;
-    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+    if (res.status === 403 || res.status === 404) {
+      return null;
+    }
+    if (!res.ok) {
+      throw new Error(`Download failed (${res.status})`);
+    }
     return res.json();
   }
 }
 
 const plugin: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlite/cjr-bridge-extension:plugin',
-  description: 'Saves notebooks to the CodingJr student account using the LAB_READY / LAB_INIT handshake.',
+  description:
+    'Saves notebooks to the CodingJr student account using the LAB_READY / LAB_INIT handshake.',
   autoStart: true,
   optional: [IDocumentManager],
   activate: (app: JupyterFrontEnd, docManager: IDocumentManager | null) => {
-    if (window.parent === window) return;
+    if (window.parent === window) {
+      return;
+    }
     const origins = parentOrigins();
-    if (origins.length === 0) return;
+    if (origins.length === 0) {
+      return;
+    }
 
     const contents = app.serviceManager.contents;
     const knownHash = new Map<string, string>();
-    const rows = new Map<string, NotebookRow>();
+    const rows = new Map<string, INotebookRow>();
     const savedBeforeInit = new Set<string>();
     let api: NotebookApi | null = null;
     let queue: Promise<void> = Promise.resolve();
@@ -171,8 +222,11 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const model = await contents.get(dir, { content: true });
       const out: Contents.IModel[] = [];
       for (const item of (model.content as Contents.IModel[]) ?? []) {
-        if (item.type === 'directory') out.push(item, ...(await listAll(item.path)));
-        else out.push(item);
+        if (item.type === 'directory') {
+          out.push(item, ...(await listAll(item.path)));
+        } else {
+          out.push(item);
+        }
       }
       return out;
     };
@@ -184,7 +238,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
         try {
           await contents.get(next, { content: false });
         } catch {
-          const created = await contents.newUntitled({ path: current, type: 'directory' });
+          const created = await contents.newUntitled({
+            path: current,
+            type: 'directory',
+          });
           await contents.rename(created.path, next);
         }
         current = next;
@@ -193,26 +250,40 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     const seed = async (path: string, content: unknown) => {
       knownHash.set(path, fnv1a(JSON.stringify(content)));
-      dirLock = dirLock.then(() => withQuiet(() => ensureDirs(path))).catch(() => undefined);
+      dirLock = dirLock
+        .then(() => withQuiet(() => ensureDirs(path)))
+        .catch(() => undefined);
       await dirLock;
       await contents.save(path, { type: 'notebook', format: 'json', content });
       const widget = docManager?.findWidget(path);
       const context = widget ? docManager?.contextForWidget(widget) : undefined;
-      if (context) await context.revert();
+      if (context) {
+        await context.revert();
+      }
     };
 
     const upload = (path: string, content?: unknown, force = false) =>
       enqueue(async () => {
-        if (!api) return;
-        const body = content ?? (await contents.get(path, { content: true, type: 'notebook' })).content;
+        if (!api) {
+          return;
+        }
+        const body =
+          content ??
+          (await contents.get(path, { content: true, type: 'notebook' })).content;
         const json = JSON.stringify(body);
         const size = new Blob([json]).size;
         if (size > MAX_NOTEBOOK_BYTES) {
-          warn(`"${titleFromPath(path)}" is ${(size / 1048576).toFixed(1)} MB, over the 10 MB limit, so it was not saved to your account. Clear large outputs and save again.`);
+          warn(
+            `"${titleFromPath(path)}" is ${(size / 1048576).toFixed(
+              1,
+            )} MB, over the 10 MB limit, so it was not saved to your account. Clear large outputs and save again.`,
+          );
           return;
         }
         const hash = fnv1a(json);
-        if (!force && knownHash.get(path) === hash) return;
+        if (!force && knownHash.get(path) === hash) {
+          return;
+        }
         let row = rows.get(path);
         if (!row) {
           row = await api.create(path);
@@ -220,15 +291,23 @@ const plugin: JupyterFrontEndPlugin<void> = {
         }
         if (row.jn_content_hash !== hash) {
           await api.upload(row, json, hash);
-          rows.set(path, { ...row, jn_content_hash: hash, jn_updated_at: new Date().toISOString() });
+          rows.set(path, {
+            ...row,
+            jn_content_hash: hash,
+            jn_updated_at: new Date().toISOString(),
+          });
         }
         knownHash.set(path, hash);
       });
 
     const renameRows = (oldPath: string, newPath: string) =>
       enqueue(async () => {
-        if (!api) return;
-        for (const [p, row] of Array.from(rows.entries()).filter(([p]) => isUnder(p, oldPath))) {
+        if (!api) {
+          return;
+        }
+        for (const [p, row] of Array.from(rows.entries()).filter(([p]) =>
+          isUnder(p, oldPath),
+        )) {
           const target = newPath + p.slice(oldPath.length);
           await api.move(row, target);
           rows.delete(p);
@@ -238,8 +317,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     const deleteRows = (path: string) =>
       enqueue(async () => {
-        if (!api) return;
-        for (const [p, row] of Array.from(rows.entries()).filter(([p]) => isUnder(p, path))) {
+        if (!api) {
+          return;
+        }
+        for (const [p, row] of Array.from(rows.entries()).filter(([p]) =>
+          isUnder(p, path),
+        )) {
           await api.remove(row);
           rows.delete(p);
         }
@@ -252,8 +335,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
         warn('This notebook could not be opened. It may have been deleted.');
         return;
       }
-      const path = rows.get(row.jn_path)?.jn_id === row.jn_id ? row.jn_path : `${VIEW_PREFIX}/${row.jn_id}/${row.jn_path.split('/').pop()}`;
-      if (isViewPath(path)) await seed(path, content);
+      const path =
+        rows.get(row.jn_path)?.jn_id === row.jn_id
+          ? row.jn_path
+          : `${VIEW_PREFIX}/${row.jn_id}/${row.jn_path.split('/').pop()}`;
+      if (isViewPath(path)) {
+        await seed(path, content);
+      }
       await app.commands.execute('docmanager:open', { path });
     };
 
@@ -262,14 +350,19 @@ const plugin: JupyterFrontEndPlugin<void> = {
       return !!(widget && docManager?.contextForWidget(widget)?.model.dirty);
     };
 
-    const reconcile = async (client: NotebookApi, ownerKey: string, initialProjectId?: string) => {
+    const reconcile = async (
+      client: NotebookApi,
+      ownerKey: string,
+      initialProjectId?: string,
+    ) => {
       api = client;
       const storedOwner = storage.get(OWNER_STORAGE_KEY);
 
       if (storedOwner && storedOwner !== ownerKey) {
         await docManager?.closeAll();
         await withQuiet(async () => {
-          for (const item of ((await contents.get('', { content: true })).content as Contents.IModel[]) ?? []) {
+          for (const item of ((await contents.get('', { content: true }))
+            .content as Contents.IModel[]) ?? []) {
             await contents.delete(item.path);
           }
         });
@@ -280,9 +373,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
       const local = new Map<string, { lastModified: string; hash: string }>();
       for (const file of await listAll().catch(() => [] as Contents.IModel[])) {
-        if (file.type !== 'notebook' || isViewPath(file.path)) continue;
-        const model = await contents.get(file.path, { content: true, type: 'notebook' }).catch(() => null);
-        if (!model) continue;
+        if (file.type !== 'notebook' || isViewPath(file.path)) {
+          continue;
+        }
+        const model = await contents
+          .get(file.path, { content: true, type: 'notebook' })
+          .catch(() => null);
+        if (!model) {
+          continue;
+        }
         const hash = fnv1a(JSON.stringify(model.content));
         knownHash.set(file.path, hash);
         local.set(file.path, { lastModified: model.last_modified, hash });
@@ -291,16 +390,27 @@ const plugin: JupyterFrontEndPlugin<void> = {
       const serverRows = await client.list();
       serverRows.forEach((r) => rows.set(r.jn_path, r));
 
-      const toDownload: NotebookRow[] = [];
+      const toDownload: INotebookRow[] = [];
       const toUpload: string[] = [];
       serverRows.forEach((row) => {
         const mine = local.get(row.jn_path);
-        if (!mine) return toDownload.push(row);
-        if (mine.hash === row.jn_content_hash) return;
-        if (new Date(row.jn_updated_at).getTime() >= new Date(mine.lastModified).getTime()) toDownload.push(row);
-        else toUpload.push(row.jn_path);
+        if (!mine) {
+          return toDownload.push(row);
+        }
+        if (mine.hash === row.jn_content_hash) {
+          return;
+        }
+        if (
+          new Date(row.jn_updated_at).getTime() >= new Date(mine.lastModified).getTime()
+        ) {
+          toDownload.push(row);
+        } else {
+          toUpload.push(row.jn_path);
+        }
       });
-      if (storedOwner === ownerKey) local.forEach((_, path) => !rows.has(path) && toUpload.push(path));
+      if (storedOwner === ownerKey) {
+        local.forEach((_, path) => !rows.has(path) && toUpload.push(path));
+      }
 
       let next = 0;
       let failed = 0;
@@ -309,11 +419,17 @@ const plugin: JupyterFrontEndPlugin<void> = {
           const row = toDownload[next++];
           try {
             const content = await client.download(row);
-            if (!content || isBeingEdited(row.jn_path)) continue;
+            if (!content || isBeingEdited(row.jn_path)) {
+              continue;
+            }
             const before = local.get(row.jn_path);
             if (before) {
-              const now = await contents.get(row.jn_path, { content: false }).catch(() => null);
-              if (now && now.last_modified !== before.lastModified) continue;
+              const now = await contents
+                .get(row.jn_path, { content: false })
+                .catch(() => null);
+              if (now && now.last_modified !== before.lastModified) {
+                continue;
+              }
             }
             await seed(row.jn_path, content);
           } catch {
@@ -321,17 +437,28 @@ const plugin: JupyterFrontEndPlugin<void> = {
           }
         }
       };
-      await Promise.all(Array.from({ length: Math.min(DOWNLOAD_CONCURRENCY, toDownload.length) }, worker));
-      if (failed > 0) warn(`${failed} saved notebook(s) could not be loaded from your account. Reload to try again.`);
+      await Promise.all(
+        Array.from(
+          { length: Math.min(DOWNLOAD_CONCURRENCY, toDownload.length) },
+          worker,
+        ),
+      );
+      if (failed > 0) {
+        warn(
+          `${failed} saved notebook(s) could not be loaded from your account. Reload to try again.`,
+        );
+      }
 
       toUpload.forEach((path) => void upload(path, undefined, true));
       savedBeforeInit.forEach((path) => void upload(path));
       savedBeforeInit.clear();
 
-      if (initialProjectId) await openViewCopy(client, initialProjectId);
+      if (initialProjectId) {
+        await openViewCopy(client, initialProjectId);
+      }
     };
 
-    const init = ({ apiBaseUrl, authToken, initialProjectId }: LabInitPayload) => {
+    const init = ({ apiBaseUrl, authToken, initialProjectId }: ILabInitPayload) => {
       const owner = userIdFromToken(authToken);
       if (!apiBaseUrl || !authToken || !owner) {
         initStarted = false;
@@ -352,18 +479,37 @@ const plugin: JupyterFrontEndPlugin<void> = {
     };
 
     contents.fileChanged.connect((_, change) => {
-      if (quiet > 0 && change.type !== 'save') return;
+      if (quiet > 0 && change.type !== 'save') {
+        return;
+      }
       const oldPath = change.oldValue?.path ?? '';
       const newPath = change.newValue?.path ?? '';
 
-      if (change.type === 'save' && newPath && isNotebookPath(newPath) && !isViewPath(newPath)) {
-        if (!api) savedBeforeInit.add(newPath);
-        else void upload(newPath, change.newValue?.content ?? undefined);
-      } else if (change.type === 'rename' && oldPath && newPath && !isViewPath(oldPath) && !isViewPath(newPath)) {
+      if (
+        change.type === 'save' &&
+        newPath &&
+        isNotebookPath(newPath) &&
+        !isViewPath(newPath)
+      ) {
+        if (!api) {
+          savedBeforeInit.add(newPath);
+        } else {
+          void upload(newPath, change.newValue?.content ?? undefined);
+        }
+      } else if (
+        change.type === 'rename' &&
+        oldPath &&
+        newPath &&
+        !isViewPath(oldPath) &&
+        !isViewPath(newPath)
+      ) {
         Array.from(knownHash.keys())
           .filter((p) => isUnder(p, oldPath))
           .forEach((p) => {
-            knownHash.set(newPath + p.slice(oldPath.length), knownHash.get(p) as string);
+            knownHash.set(
+              newPath + p.slice(oldPath.length),
+              knownHash.get(p) as string,
+            );
             knownHash.delete(p);
           });
         void renameRows(oldPath, newPath);
@@ -376,15 +522,21 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     window.addEventListener('message', (event: MessageEvent) => {
-      if (event.source !== window.parent || !origins.includes(event.origin)) return;
-      const data = event.data as { type?: string; payload?: LabInitPayload } | null;
-      if (!data || data.type !== 'LAB_INIT' || !data.payload || initStarted) return;
+      if (event.source !== window.parent || !origins.includes(event.origin)) {
+        return;
+      }
+      const data = event.data as { type?: string; payload?: ILabInitPayload } | null;
+      if (!data || data.type !== 'LAB_INIT' || !data.payload || initStarted) {
+        return;
+      }
       initStarted = true;
       init(data.payload);
     });
 
     void app.restored.then(() => {
-      origins.forEach((origin) => window.parent.postMessage({ type: 'LAB_READY' }, origin));
+      origins.forEach((origin) =>
+        window.parent.postMessage({ type: 'LAB_READY' }, origin),
+      );
     });
   },
 };
