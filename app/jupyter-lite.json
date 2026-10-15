@@ -11,6 +11,7 @@
     "fullLabextensionsUrl": "./extensions",
     "fullStaticUrl": "./build",
     "licensesUrl": "./lab/api/licenses",
+    "cjrParentOrigins": ["https://codingpro.online", "http://localhost:3000"],
     "disabledExtensions": [
       "@jupyterlite/application-extension:about",
       "@jupyterlab/apputils-extension:licenses-plugin"
