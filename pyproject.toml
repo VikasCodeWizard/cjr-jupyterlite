@@ -38,7 +38,7 @@ dev = [
     "jupyterlite-pyodide-kernel>=0.8.0a0",
     "notebook>=7.6.0a0,<7.7",
     "pkginfo",
-    "ruff>=0.8.3",
+    "ruff>=0.8.3,<0.18",
     "twine>=5.1.1",
     "watchfiles>=0.21",
 ]
@@ -63,7 +63,7 @@ lint = [
     "nbconvert",
     "nbstripout",
     "pre-commit",
-    "ruff>=0.8.3",
+    "ruff>=0.8.3,<0.18",
 ]
 
 # Release process
@@ -155,6 +155,8 @@ ignore = [
 "RUF012",
 # PLC0415 `import` should be at the top-level of a file (allow lazy imports for optional deps)
 "PLC0415",
+# rules added in ruff 0.17 that flag existing code: RUF071 os.path.commonprefix, ICN001 datetime alias, PLR0917 positional args
+"RUF071", "ICN001", "PLR0917",
 ]
 
 [tool.ruff.lint.per-file-ignores]

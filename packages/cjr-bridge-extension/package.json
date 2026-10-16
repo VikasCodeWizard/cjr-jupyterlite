@@ -1,0 +1,35 @@
+{
+  "name": "@jupyterlite/cjr-bridge-extension",
+  "version": "0.8.0-alpha.1",
+  "description": "CodingJr - mirrors notebooks to the parent page so they can be saved to the student's account",
+  "license": "BSD-3-Clause",
+  "author": "CodingJr",
+  "private": true,
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "files": [
+    "lib/*.d.ts",
+    "lib/*.js.map",
+    "lib/*.js",
+    "src/**/*.{ts,tsx}"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rimraf lib && rimraf tsconfig.tsbuildinfo",
+    "watch": "tsc -b --watch"
+  },
+  "dependencies": {
+    "@jupyterlab/application": "~4.6.0-alpha.2",
+    "@jupyterlab/apputils": "~4.7.0-alpha.2",
+    "@jupyterlab/coreutils": "~6.6.0-alpha.2",
+    "@jupyterlab/docmanager": "~4.6.0-alpha.2",
+    "@jupyterlab/services": "~7.6.0-alpha.2"
+  },
+  "devDependencies": {
+    "rimraf": "~5.0.1",
+    "typescript": "~5.5.4"
+  },
+  "jupyterlab": {
+    "extension": true
+  }
+}

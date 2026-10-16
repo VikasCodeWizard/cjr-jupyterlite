@@ -2069,16 +2069,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/nbformat@npm:^3.0.0 || ^4.0.0-alpha.21 || ^4.0.0":
-  version: 4.5.1
-  resolution: "@jupyterlab/nbformat@npm:4.5.1"
-  dependencies:
-    "@lumino/coreutils": ^2.2.2
-  checksum: 3883f224c731bb5825523ee982a4535f3d6c0123f9581ca147967595bfc142ab80b3fa5c93a61a03fb95212c40d5c36db049130f115647de78c8faeef0376bf5
-  languageName: node
-  linkType: hard
-
-"@jupyterlab/nbformat@npm:^4.6.0-alpha.2, @jupyterlab/nbformat@npm:~4.6.0-alpha.2":
+"@jupyterlab/nbformat@npm:^3.0.0 || ^4.0.0-alpha.21 || ^4.0.0, @jupyterlab/nbformat@npm:^4.6.0-alpha.2, @jupyterlab/nbformat@npm:~4.6.0-alpha.2":
   version: 4.6.0-alpha.2
   resolution: "@jupyterlab/nbformat@npm:4.6.0-alpha.2"
   dependencies:
@@ -2969,6 +2960,7 @@ __metadata:
     "@jupyterlab/workspaces-extension": ~4.6.0-alpha.2
     "@jupyterlite/application-extension": ^0.8.0-alpha.1
     "@jupyterlite/apputils-extension": ^0.8.0-alpha.1
+    "@jupyterlite/cjr-bridge-extension": ^0.8.0-alpha.1
     "@jupyterlite/iframe-extension": ^0.8.0-alpha.1
     "@jupyterlite/localforage": ^0.8.0-alpha.1
     "@jupyterlite/notebook-application-extension": ^0.8.0-alpha.1
@@ -3262,6 +3254,20 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@jupyterlite/cjr-bridge-extension@^0.8.0-alpha.1, @jupyterlite/cjr-bridge-extension@workspace:packages/cjr-bridge-extension":
+  version: 0.0.0-use.local
+  resolution: "@jupyterlite/cjr-bridge-extension@workspace:packages/cjr-bridge-extension"
+  dependencies:
+    "@jupyterlab/application": ~4.6.0-alpha.2
+    "@jupyterlab/apputils": ~4.7.0-alpha.2
+    "@jupyterlab/coreutils": ~6.6.0-alpha.2
+    "@jupyterlab/docmanager": ~4.6.0-alpha.2
+    "@jupyterlab/services": ~7.6.0-alpha.2
+    rimraf: ~5.0.1
+    typescript: ~5.5.4
+  languageName: unknown
+  linkType: soft
+
 "@jupyterlite/contents@^0.8.0-alpha.1, @jupyterlite/contents@workspace:packages/contents":
   version: 0.0.0-use.local
   resolution: "@jupyterlite/contents@workspace:packages/contents"
@@ -3316,6 +3322,7 @@ __metadata:
     "@jupyterlite/application-extension": ^0.8.0-alpha.1
     "@jupyterlite/apputils": ^0.8.0-alpha.1
     "@jupyterlite/apputils-extension": ^0.8.0-alpha.1
+    "@jupyterlite/cjr-bridge-extension": ^0.8.0-alpha.1
     "@jupyterlite/contents": ^0.8.0-alpha.1
     "@jupyterlite/iframe-extension": ^0.8.0-alpha.1
     "@jupyterlite/kernel": ^0.8.0-alpha.1

@@ -127,6 +127,7 @@ function shouldDrop(request: Request, url: URL): boolean {
   return (
     request.method !== 'GET' ||
     url.origin.match(/^http/) === null ||
+    url.origin !== location.origin ||
     url.pathname.includes('/api/')
   );
 }
